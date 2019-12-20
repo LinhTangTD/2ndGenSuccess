@@ -69,7 +69,7 @@ describe(Final[2:55])
 In order to understand our dataset, we perform Exploratory Data Analysis on the 'predictors'. A general report of this subset is attached with this report. In particular, we use histogram to see the distribution of values in each variable in the dataset and examines their correlations to each other:  
 
 ```{r chunk4}
-predictors = select(predictors, -`Private.school-1995`)
+predictors = select(predictors, -`Private school-1995`)
 predictors = select(predictors, -`Private.school-1991`)
 plot_histogram(predictors)
 plot_correlation(predictors)
