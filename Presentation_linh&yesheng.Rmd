@@ -60,7 +60,7 @@ plot_correlation(result[2:15])
 
 ### 6. Performance Evaluation between models
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 #### New Data Set ####
 # Removing the result coloumns and kept only the sucess index
 ImmigrantSuccess<-select(Final,-c(1:15))
@@ -122,6 +122,7 @@ model_compare
 
 ```{r}
 coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)
+fit.lasso$
 ```
 
 ### 8. PCA on Predictors
