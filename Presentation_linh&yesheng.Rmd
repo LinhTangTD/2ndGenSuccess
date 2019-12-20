@@ -26,39 +26,39 @@ predictors = read_csv(paste(path, "predictors.csv", sep = "/"))
 result = read_csv(paste(path, "result.csv", sep = "/"))
 ```
 
-1. Data Exploration
+### 1. Data Exploration
 
 ```{r}
 plot_intro(da)
 ```
 
-2. Summary of Predictors Dataset
+### 2. Summary of Predictors Dataset
 
 ```{r}
 plot_intro(predictors)
 describe(predictors[2:44])
 ```
 
-3. Distribution of different predictors
+### 3. Distribution of different predictors
 
 ```{r}
 plot_histogram(predictors[2:44])
 plot_correlation(predictors[2:44])
 ```
 
-3. Distribution of components in succes index formula
+### 4. Distribution of components in succes index formula
 
 ```{r}
 plot_histogram(result[2:15])
 ```
 
-4. Pairwise correlation between these components
+### 5. Pairwise correlation between these components
 
 ```{r}
 plot_correlation(result[2:15])
 ```
 
-5. Performance Evaluation between models
+### 6. Performance Evaluation between models
 
 ```{r}
 #### New Data Set ####
@@ -118,13 +118,13 @@ model_compare <- RMSEframe %>%
 model_compare
 ```
 
-6. Results on LASSO models
+### 7. Results on LASSO models
 
 ```{r}
 coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)
 ```
 
-7. PCA on Predictors
+### 8. PCA on Predictors
 
 ```{r}
 predictors_2<-select(predictors, -c(caseId, `Private.school-1991`,`Private school-1995`))
@@ -132,7 +132,7 @@ P_predict<-prcomp(predictors_2, scale = TRUE)
 fviz_eig(P_predict, addlabels = TRUE)
 ```
 
-8. Contributions of Variables on top 5 PCs
+### 9. Contributions of Variables on top 5 PCs
 
 ```{r}
 fviz_contrib(P_predict, choice = "var", axes = 1, top = 6)
@@ -142,14 +142,14 @@ fviz_contrib(P_predict, choice = "var", axes = 4, top = 6)
 fviz_contrib(P_predict, choice = "var", axes = 5, top = 6)
 ```
 
-9. PCA on Results
+### 10. PCA on Results
 
 ```{r}
 P_result <- prcomp(Res[2:15], scale = TRUE)
 fviz_eig(P_result, addlabels = TRUE)
 ```
 
-10. Contributions of Variables on top 4 PCs
+### 11. Contributions of Variables on top 4 PCs
 
 ```{r}
 fviz_contrib(P_result, choice = "var", axes = 1, top = 6) 
