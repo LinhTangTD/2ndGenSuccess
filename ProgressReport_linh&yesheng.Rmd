@@ -1,0 +1,188 @@
+---
+title: "Progress Report"
+author: "Linh and Yesheng"
+date: "12/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(prettyR)
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(factoextra)
+library(DataExplorer)
+
+path = "/Users/MAC/Desktop/STA230/FinalProject"
+
+Final = read_csv(paste(path, "cleaned_data.csv", sep = "/"))
+predictors = read_csv(paste(path, "predictors.csv", sep = "/"))
+result = read_csv(paste(path, "result.csv", sep = "/"))
+```
+
+### 1. Introduction: 
+
+#### 1.1 Research question: 
+
+Our main goal for carrying this project is to examine how to evaluate the "success" of second generation immigrants in the United States in the period 2001-2003 and analyze the factors that contribute to that success during their life-long adaptation process. Moreover, we aimed to build a model that can predict the success index of second-generation immigrants based on family background, education attainment and adaptation process. 
+
+#### 1.2. Literature Review: 
+
+#### 1.3. Dataset: 
+The dataset we are using is Children of Immigrants Longitudinal Study (CILS), which can be found via this link: https://toolbox.google.com/datasetsearch/search?query=first%20generation%20students&docid=8QcOTzZuWPdoGrB4AAAAAA%3D%3D.
+
+The data set contains of 665 variables with 5262 observations, representing the responsed and questions surveyed through the whole longitudinal study. The variables can be analyzed by splitting into 3 different groups, corresponding to 3 different surveys that were conducted in total.
+
+### 2. Methodology 
+
+#### 2.1 Data processing: 
+The dataset was built from 3 surveys targeting immigrant second generation in the United States, who are, by how the survey is set up, either US-born children of at least one foreign-born parent, or foreign-born children but were then naturalized. During the data cleaning process, we created 2 separte sub-set of the data: one contains all variables from the first 2 surveys, namely "predictors" and one contains variables from the last survey, namely "results".  The first and second survey were conducted in the schools of attendees, while the last survey was done by individual contacts, leading to a noticeable decline in participation.
+
+The first survey started in 1992, getting 5262 responses from 8th and 9th grades children, with a diversity of 77 (original) nationalities. This survey aimed at baseline information on families, demographic characteristics, language use, self-identities, and academic attainment of the attendees
+
+The second survey was conducted 3 years later (1995), when the attenddees finished high schools, and retrieved 4288 responses (81.5% of the first survey). The goal of this follow-up was to examine the evolution of key adaptation outcomes including language knowledge and preference, ethnic identity, self-esteem, and academic attainment over the adolescent years. One important finding of this survey is the percentage of attendees who failed to graduate from high school. The survey also conducted interviews on parents' outlooks on their children's future, however for the scope of this project, we decided not to take it into account. 
+
+In our project, we ran PCA on both "predictors" to find derived combinations of variables that are potential predictors of a person's success. After ananlyzing the data, we decided that there are 43 variables that worth futher consideration:
+
+```{r chunk1}
+names(predictors) #list of variables
+```
+
+The final survey was conducted in 2001-2003 via mail, with 3613 respondents (68.9% of the first survey). The questionaires were mainly focused on the outcome of adaptation process, measured by educational attainment, employment and occupational status, income, civil status and ethnicity of spouses/partners, political attitudes and participation, ethnic and racial identities, delinquency and incarceration, attitudes and levels of identification with American society, and plans for the future. These 29 variables below are then used in our project as the components of the "sucess index" - a numeric value that we developed specifically for this project, representing a person's success at the age of 24-26.
+
+```{r chunk2}
+names(result) #components of success index
+```
+
+After manipulating the source dataset, we arrived at a clean dataset that will be used for analysis and model building. We decided to remove all respones with missing value for any of the above-mentioned variables, thus greatly reducing the size of the dataset to 656 observations and 59 variables. The summary of the clean dataset is showed below: 
+
+```{r chunk3}
+describe(Final[2:55])
+```
+
+#### 2.2 Data analysis: 
+
+
+##### 2.2.1 Analyzing predictors:
+
+In order to understand our dataset, we perform Exploratory Data Analysis on the 'predictors'. A general report of this subset is attached with this report. In particular, we use histogram to see the distribution of values in each variable in the dataset and examines their correlations to each other:  
+
+```{r chunk4}
+predictors = select(predictors, -`Private.school-1995`)
+predictors = select(predictors, -`Private.school-1991`)
+plot_histogram(predictors)
+plot_correlation(predictors)
+```
+
+Looking at the correlation plot, we noticed that the most variables do not strongly correlate with other variables in the dataset, therefore we can be confident that the covariance problem is not likely to occur and these variables would be helpful predictors for our model. However, 42 variables are still a fairly large number to fit in the model. We proceeded by performing PCA on our data: 
+
+```{r chunk5}
+predictors = na.omit(predictors)
+P_predict<-prcomp(predictors[2:42], scale=TRUE)
+fviz_pca_biplot(P_predict, repel = FALSE, # Avoid text overlapping (doesn't scale to large datasets)
+                col.var = "red", # Variables color
+                col.ind = "black") + theme_minimal()
+fviz_eig(P_predict, addlabels = TRUE)
+```
+
+From the scree plot above, we can see that the first five principle components contain 33.9% of the variability in the data (with the first really standing out) before the leveling-off point. This suggests plotting that the data in five derived-dimensions is an effective summary of all of the variables. The next step in our analysis is to investigate which variables are contributing heavily to each of these six components. Looking at the top 6 components for each dimension in these plot of contributions below, the most-contributed components in each dimension: 
+
+```{r chunk6}
+fviz_contrib(P_predict, choice = "var", axes = 1, top = 6)
+```
+
+PC1: respondent's education during both secondary school and high school on scale 4
+
+```{r}
+fviz_contrib(P_predict, choice = "var", axes = 2, top = 6)
+```
+
+PC2: respondent's English capability during both secondary school and high school
+
+```{r}
+fviz_contrib(P_predict, choice = "var", axes = 3, top = 6)
+```
+
+PC3: respondent's gender and their level of depression during both secondary school and high school
+
+```{r}
+fviz_contrib(P_predict, choice = "var", axes = 4, top = 6)
+```
+
+PC4: whether or not respondent is US Citizen when they were in high school and the reasons their Dad came to US
+
+```{r}
+fviz_contrib(P_predict, choice = "var", axes = 5, top = 6)
+```
+
+PC5: respondent's gender during both secondary school and high school, their present living situation in 1995, and their guardian(s) when they were in secondary school. 
+
+##### 2.2.2 Analyzing results: 
+
+In order to understand our dataset, we perform Exploratory Data Analysis on the 'result'. A general report of this subset is attached with this report. In particular, we use histogram to see the distribution of values in each variable in the dataset and examines their correlations to each other:  
+
+```{r chunk7}
+plot_histogram(result)
+plot_correlation(result)
+```
+
+Looking at the correlation plot, we noticed that the most variables do not strongly correlate with other variables in the dataset, except for "Present income satisfaction" and "Current Occupation Satisfaction", which are understandable, so we might consider choosing one out of these two when calculating our success index. In general, we can be confident that the covariance problem is not likely to occur and these variables would be helpful components in our success formula. We proceeded by performing PCA on our data: 
+
+```{r chunk8}
+P_result<-prcomp(result[2:15],scale = TRUE)
+fviz_pca_biplot(P_result, repel = FALSE, # Avoid text overlapping (doesn't scale to large datasets)
+                col.var = "red", # Variables color
+                col.ind = "contrib",
+                geom = 'point') + theme_minimal()
+fviz_eig(P_result, addlabels = TRUE)
+P_result
+```
+
+From the scree plot above, we can see that the first three principle components contain 38.6% of the variability in the data before the leveling-off point. This suggests plotting that the data in three derived-dimensions is an effective summary of all of the variables. The next step in our analysis is to investigate which variables are contributing heavily to each of these three components. Looking at the top 6 components for each dimension in these plot of contributions below, we notice the most-contributed components in each dimension:
+
+```{r chunk9}
+fviz_contrib(P_result, choice = "var", axes = 1, top = 6)
+```
+
+PC1: respondent's job satisfaction and the prestige-ness of the job.
+
+```{r}
+fviz_contrib(P_result, choice = "var", axes = 2, top = 6)
+```
+
+PC2: respondent's income satisfaction and their highest level of education 
+
+```{r}
+fviz_contrib(P_result, choice = "var", axes = 3, top = 6)
+```
+
+PC3: how much does the respondent value their identity and the country they consider home 
+
+```{r}
+fviz_contrib(P_result, choice = "var", axes = 4, top = 6)
+```
+
+#### 2.3 Predictive Model:
+ 
+Inititially we plan to use a linear regression model, however due to the characteristics of our data which involves large number of explantory variables, we need an alternative that can either implicitly select variables with strong effects, improve accuracy or flexibility and avoid overfitting problems. Two models that we are considering is the basic linear regression, LASSO (least absolute shrinkage and selection operation) and GAM (Generalized Additive Model) and PRC(Principle Components Regression). We proceed by fitting and evaluating these models using out-of-sample cross-validation to compare the RMSE of each model. 
+
+#### 2.3.1 LASSO Model:
+
+#### 2.3.3 Performance Evaluation: 
+
+### 3. Results and discussion:
+
+### 4. Limitations and future plans: 
+
+#### 4.1 Limitations: 
+- One limitation of this project is the time the data was collected, which was from 199e1-2001 (20 years ago). Since the data is not up to date, the trend might change considerably. 
+- Another limitation is that after cleaning the dataset, a large portion of the original dataset is removed due to missing values. This can largely influence our result. Furthermore, eventually only 665 observations are analyzed, which is relatively a small number to represent the second immigrant community
+
+#### 4.2 Future work
+
+### 5. References: 
+
+https://www.nytimes.com/2013/02/08/us/pew-study-tracks-success-of-children-of-immigrants.html \
+https://assets.documentcloud.org/documents/598518/pew-report-second-generation-americans.pdf \
+https://www.nber.org/papers/w23548.pdf \

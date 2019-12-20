@@ -1,0 +1,159 @@
+---
+title: "Presentation Visualization"
+author: "Linh Tang & Yesheng Chen"
+date: "12/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DataExplorer)
+library(prettyR)
+library(readr)
+library(dplyr)
+library(factoextra)  ## Used for PCA visualizations
+library(caret)  ## package for model comparisons
+library(glmnet) ## package for fitting lasso models
+library(mgcv)   ## package for fitting GAM models
+library(pls)
+library(tidyr)
+
+path = "/Users/MAC/Desktop/STA230/FinalProject"
+
+da= get(load(paste(path, "20520-0001-Data.rda", sep="/")))
+Final = read_csv(paste(path, "cleaned_data.csv", sep = "/"))
+predictors = read_csv(paste(path, "predictors.csv", sep = "/"))
+result = read_csv(paste(path, "result.csv", sep = "/"))
+```
+
+1. Data Exploration
+
+```{r}
+plot_intro(da)
+```
+
+2. Summary of Predictors Dataset
+
+```{r}
+plot_intro(predictors)
+describe(predictors[2:44])
+```
+
+3. Distribution of different predictors
+
+```{r}
+plot_histogram(predictors[2:44])
+plot_correlation(predictors[2:44])
+```
+
+3. Distribution of components in succes index formula
+
+```{r}
+plot_histogram(result[2:15])
+```
+
+4. Pairwise correlation between these components
+
+```{r}
+plot_correlation(result[2:15])
+```
+
+5. Performance Evaluation between models
+
+```{r}
+#### New Data Set ####
+# Removing the result coloumns and kept only the sucess index
+ImmigrantSuccess<-select(Final,-c(1:15))
+colnames(ImmigrantSuccess)<-make.names(names(ImmigrantSuccess))
+
+#### Run models####
+#Set the number of repeats and folds on the dataset
+fit.control <- trainControl(method = "repeatedcv", number = 5, repeats = 10,verboseIter = TRUE)
+#Set seeds so that all models starts the same for compairsion purpose in the future
+set.seed(123)
+#Linear Regression model 
+fit.linear <- train(successIndex ~ ., data = ImmigrantSuccess, method = "lm", trControl = fit.control)
+#LASSO model
+X = model.matrix(data = ImmigrantSuccess[,-44], ~ -1 + .) ## Set up the matrix including dummy vars
+y = ImmigrantSuccess$successIndex
+
+lasso <- glmnet(x = X, y = y)
+set.seed(123)
+lams <- expand.grid(alpha = 1, lambda = lasso$lambda)
+fit.lasso <- train(successIndex ~ ., data = ImmigrantSuccess, method = "glmnet", trControl = fit.control, tuneGrid = lams)
+
+#GAM Model
+set.seed(123)
+fit.gam <- train(successIndex ~ ., data = ImmigrantSuccess, method = "gam", trControl = fit.control)
+
+#PCR Model
+set.seed(123)
+fit.pcr <- train(successIndex ~ ., data = ImmigrantSuccess, method = "pcr", trControl = fit.control)
+
+#Summary
+rs<- resamples(list(LM = fit.linear, 
+                    LASSO = fit.lasso,
+                    GAM = fit.gam,
+                    PCR = fit.pcr))
+sumdata<-summary(rs)
+
+## Graph for evaluation 
+# Getting a copy of the data
+RMSEframe<-data.frame(sumdata$statistics$RMSE)
+#Removing the NA, which are all zero
+RMSEframe<-RMSEframe[1:6]
+#Have a column for the model names
+RMSEframe$Model<-rownames(RMSEframe)
+#change the row names to null
+rownames(RMSEframe)<-NULL
+#Reorganize the dataframe into something plotable 
+RMSEframe <- gather(data = RMSEframe, key = Quatile, value = RMSE, `Min.`,`X1st.Qu.`,`Median`,`Mean`,`X3rd.Qu.`,`Max.`)
+
+model_compare <- RMSEframe %>%
+  ggplot(aes(x=Quatile, y=RMSE,color=Model,group = Model)) +
+  geom_line() +
+  geom_point(size=2) +
+  ggtitle("RMSE Model Comparison") 
+
+model_compare
+```
+
+6. Results on LASSO models
+
+```{r}
+coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)
+```
+
+7. PCA on Predictors
+
+```{r}
+predictors_2<-select(predictors, -c(caseId, `Private.school-1991`,`Private school-1995`))
+P_predict<-prcomp(predictors_2, scale = TRUE)
+fviz_eig(P_predict, addlabels = TRUE)
+```
+
+8. Contributions of Variables on top 5 PCs
+
+```{r}
+fviz_contrib(P_predict, choice = "var", axes = 1, top = 6)
+fviz_contrib(P_predict, choice = "var", axes = 2, top = 6)
+fviz_contrib(P_predict, choice = "var", axes = 3, top = 6)
+fviz_contrib(P_predict, choice = "var", axes = 4, top = 6)
+fviz_contrib(P_predict, choice = "var", axes = 5, top = 6)
+```
+
+9. PCA on Results
+
+```{r}
+P_result <- prcomp(Res[2:15], scale = TRUE)
+fviz_eig(P_result, addlabels = TRUE)
+```
+
+10. Contributions of Variables on top 4 PCs
+
+```{r}
+fviz_contrib(P_result, choice = "var", axes = 1, top = 6) 
+fviz_contrib(P_result, choice = "var", axes = 2, top = 6)
+fviz_contrib(P_result, choice = "var", axes = 3, top = 6)
+fviz_contrib(P_result, choice = "var", axes = 4, top = 6)
+```
