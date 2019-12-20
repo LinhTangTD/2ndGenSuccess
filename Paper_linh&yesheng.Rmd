@@ -1,0 +1,136 @@
+---
+title: "Paper Visualization"
+author: "Linh Tang & Yesheng Chen"
+date: "12/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(caret)  ## package for model comparisons
+library(glmnet) ## package for fitting lasso models
+library(coefplot)
+library(ggplot2)
+library(DataExplorer)
+
+path = "/Users/MAC/Desktop/STA230/FinalProject"
+Final = read_csv(paste(path, "cleaned_data.csv", sep = "/"))
+predictors = read_csv(paste(path, "predictors.csv", sep = "/"))
+result = read_csv(paste(path, "result.csv", sep = "/"))
+```
+
+### Visulizing 2 data sets
+
+```{r}
+predictors_2<-select(predictors, -c(caseId, `Private.school-1991`,`Private school-1995`))
+
+P_predict<-prcomp(predictors_2, scale = TRUE)
+Screeplot_predict<-fviz_eig(P_predict, addlabels = TRUE, main = "Scree Plot of Predictors")
+P_result <- prcomp(result[2:15], scale = TRUE)
+Screeplot_result<-fviz_eig(P_result, addlabels = TRUE, main = "Scree Plot of Result")
+
+plot_grid(Screeplot_predict, Screeplot_result)
+```
+
+### Fitting in LASSO models
+
+```{r}
+#### New Data Set ####
+# Removing the result coloumns and kept only the sucess index
+ImmigrantSuccess<-select(Final,-c(1:15))
+colnames(ImmigrantSuccess)<-make.names(names(ImmigrantSuccess))
+
+#### Run models####
+#Set the number of repeats and folds on the dataset
+fit.control <- trainControl(method = "repeatedcv", number = 5, repeats = 10,verboseIter = TRUE)
+#Set seeds so that all models starts the same for compairsion purpose in the future
+set.seed(123)
+
+#Linear Regression model 
+fit.linear <- train(successIndex ~ ., data = ImmigrantSuccess, method = "lm", trControl = fit.control)
+
+#LASSO model
+X = model.matrix(data = ImmigrantSuccess[,-44], ~ -1 + .) ## Set up the matrix including dummy vars
+y = ImmigrantSuccess$successIndex
+lasso <- glmnet(x = X, y = y)
+set.seed(123)
+lams <- expand.grid(alpha = 1, lambda = lasso$lambda)
+fit.lasso <- train(successIndex ~ ., data = ImmigrantSuccess, method = "glmnet", trControl = fit.control, tuneGrid = lams)
+
+#GAM Model
+set.seed(123)
+fit.gam <- train(successIndex ~ ., data = ImmigrantSuccess, method = "gam", trControl = fit.control)
+
+#PCR Model
+set.seed(123)
+fit.pcr <- train(successIndex ~ ., data = ImmigrantSuccess, method = "pcr", trControl = fit.control)
+
+#Summary
+rs<- resamples(list(LM = fit.linear, 
+                    LASSO = fit.lasso,
+                    GAM = fit.gam,
+                    PCR = fit.pcr))
+sumdata<-summary(rs)
+## Graph for evaluation 
+# Getting a copy of the data
+RMSEframe<-data.frame(sumdata$statistics$RMSE)
+#Removing the NA, which are all zero
+RMSEframe<-RMSEframe[1:6]
+#Have a column for the model names
+RMSEframe$Model<-rownames(RMSEframe)
+#change the row names to null
+rownames(RMSEframe)<-NULL
+#Reorganize the dataframe into something plotable 
+RMSEframe <- gather(data = RMSEframe, key = Quartile, value = RMSE, `Min.`,`X1st.Qu.`,`Median`,`Mean`,`X3rd.Qu.`,`Max.`)
+
+model_compare <- RMSEframe %>%
+  ggplot(aes(x=Quartile, y=RMSE,color=Model,group = Model)) +
+  geom_line() +
+  geom_point(size=2) +
+  ggtitle("RMSE Model Comparison") 
+
+model_compare
+```
+
+### Visualizing variables in model with non-zero coefficients
+
+```{r warning=FALSE, message=FAlSE, comment=FALSE}
+#print all variables which coefficient is set to zero
+rownames(coef(fit.lasso$finalModel, s =fit.lasso$bestTune$lambda))[coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)[,1]== 0]
+
+#create dataframe from variables with non-zero coefficients in the final model
+var = rownames(coef(fit.lasso$finalModel, s =fit.lasso$bestTune$lambda))[coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)[,1]!= 0][-1]
+coef = coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)[coef(fit.lasso$finalModel, s = fit.lasso$bestTune$lambda)[,1]!= 0][-1]
+lasso_var = data_frame(Var = var, Coef = coef)
+
+#normalize coefficients of all variables but "Sex" to one standard deviation increase
+sex_coef = lasso_var$Coef[6]
+stdev = data.frame(apply(X, MARGIN = 2, sd))
+coef = stdev[var,] * coef
+coef[6] = sex_coef
+
+#dataset with only selected variable
+selected_var = select(ImmigrantSuccess, var)
+describe(selected_var)
+
+#distributions of selected variables
+plot_histogram(selected_var)
+
+#RMSE across different regularization paramter
+plot(fit.lasso)
+
+#bar chart visualizing the coefficients of selected variables
+ggplot(data=lasso_var, aes(Var, Coef)) + geom_bar(stat = "identity") + coord_flip() + labs(title="Contributions of selected variables from LASSO model to success index", y ="Coefficients", x = "Selected Variables")
+```
+
+### Visualizing other models and comparing them with LASSO using 
+
+```{r}
+plot_grid(plot(fit.gam), 
+          plot(fit.pcr), 
+          plot(fit.lasso), 
+          xyplot(rs, what = "BlandAltman", metric = "RMSE", models = c("LM", "LASSO")),
+          xyplot(rs, what = "BlandAltman", metric = "RMSE", models = c("GAM", "LASSO")),
+          xyplot(rs, what = "BlandAltman", metric = "RMSE", models = c("PCR", "LASSO")))
+```
