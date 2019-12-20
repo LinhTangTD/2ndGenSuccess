@@ -145,7 +145,7 @@ fviz_contrib(P_predict, choice = "var", axes = 5, top = 6)
 ### 10. PCA on Results
 
 ```{r}
-P_result <- prcomp(Res[2:15], scale = TRUE)
+P_result <- prcomp(result[2:15], scale = TRUE)
 fviz_eig(P_result, addlabels = TRUE)
 ```
 
