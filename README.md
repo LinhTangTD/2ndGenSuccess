@@ -1,5 +1,4 @@
-# 2ndGenSuccess
-Regression Model to predict Success Index of Second-Generation Immigrants in the US
+# Regression Model to predict Success Index of Second-Generation Immigrants in the US
 
 Please download the original dataset in this repo. No need to download 3 csv files as you can recreate yourself by running the code. However if you don't have time, you can download directly from this repo and skip running "data-cleaning.R" file.
 
